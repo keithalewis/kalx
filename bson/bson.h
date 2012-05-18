@@ -66,17 +66,11 @@ namespace bson {
 		return a.type < b.type;
 	}
 
-	class value {
+	class value : public element {
 	public:
-		element element;
-		element_t type() const
-		{
-			return element.type;
-		}
-
 		value()
 		{
-			element.type = BSON_NULL;
+			type = BSON_NULL;
 		}
 		value(const value& v)
 		{
@@ -85,19 +79,19 @@ namespace bson {
 		value& operator=(const value& v)
 		{
 			if (this != &v) {
-				switch (v.element.type) {
+				switch (v.type) {
 				case BSON_STRING:
-					operator=(v.element.data.string);
+					operator=(v.data.string);
 					break;
 				case BSON_ARRAY:
-					operator=(v.element.data.array);
+					operator=(v.data.array);
 					break;
 				case BSON_BYTE:
-					operator=(v.element.data.byte);
+					operator=(v.data.byte);
 					break;
 				default: // non pointer types
-					element.type = v.element.type;
-					element.data = v.element.data;
+					type = v.type;
+					data = v.data;
 				}
 			}
 
@@ -120,8 +114,8 @@ namespace bson {
 				operator=(e.data.byte);
 				break;
 			default: // non pointer types
-				element.type = e.type;
-				element.data = e.data;
+				type = e.type;
+				data = e.data;
 			}
 
 			return *this;
@@ -135,70 +129,70 @@ namespace bson {
 
 		bool operator==(const value& v) const
 		{
-			return element.type != v.element.type ? false 
-				: element.type == BSON_STRING ? operator==(v.element.data.string) 
-				: element.type == BSON_NUMBER ? element.data.number == v.element.data.number
-				: element.type == BSON_OBJECT ? element.data.object == v.element.data.object // point to same object
-				: element.type == BSON_ARRAY ? operator==(v.element.data.array)
-				: element.type == BSON_TRUE ? true
-				: element.type == BSON_FALSE ? true
-				: element.type == BSON_NULL ? false // null <> null
-				: element.type == BSON_BYTE ? operator==(v.element.data.byte)
-				: element.type == BSON_INT32 ? element.data.int32 == v.element.data.int32
-				: element.type == BSON_INT64 ? element.data.int64 == v.element.data.int64
-				: element.type == BSON_DATE ? element.data.date == v.element.data.date
+			return type != v.type ? false 
+				: type == BSON_STRING ? operator==(v.data.string) 
+				: type == BSON_NUMBER ? data.number == v.data.number
+				: type == BSON_OBJECT ? data.object == v.data.object // point to same object
+				: type == BSON_ARRAY ? operator==(v.data.array)
+				: type == BSON_TRUE ? true
+				: type == BSON_FALSE ? true
+				: type == BSON_NULL ? false // null <> null
+				: type == BSON_BYTE ? operator==(v.data.byte)
+				: type == BSON_INT32 ? data.int32 == v.data.int32
+				: type == BSON_INT64 ? data.int64 == v.data.int64
+				: type == BSON_DATE ? data.date == v.data.date
 				: false // shouldn't happen
 				;
 		}
 		bool operator<(const value& v) const
 		{
-			return element.type != v.element.type ? element.type < v.element.type // <--- fix this!!!
-				: element.type == BSON_STRING ? operator<(v.element.data.string) 
-				: element.type == BSON_NUMBER ? element.data.number < v.element.data.number
-				: element.type == BSON_OBJECT ? element.data.object < v.element.data.object // meaningless
-				: element.type == BSON_ARRAY ? operator<(v.element.data.array)
-				: element.type == BSON_TRUE ? true
-				: element.type == BSON_FALSE ? true
-				: element.type == BSON_NULL ? false // null <> null
-				: element.type == BSON_BYTE ? operator<(v.element.data.byte)
-				: element.type == BSON_INT32 ? element.data.int32 < v.element.data.int32
-				: element.type == BSON_INT64 ? element.data.int64 < v.element.data.int64
-				: element.type == BSON_DATE ? element.data.date < v.element.data.date
+			return type != v.type ? type < v.type // <--- fix this!!!
+				: type == BSON_STRING ? operator<(v.data.string) 
+				: type == BSON_NUMBER ? data.number < v.data.number
+				: type == BSON_OBJECT ? data.object < v.data.object // meaningless
+				: type == BSON_ARRAY ? operator<(v.data.array)
+				: type == BSON_TRUE ? true
+				: type == BSON_FALSE ? true
+				: type == BSON_NULL ? false // null <> null
+				: type == BSON_BYTE ? operator<(v.data.byte)
+				: type == BSON_INT32 ? data.int32 < v.data.int32
+				: type == BSON_INT64 ? data.int64 < v.data.int64
+				: type == BSON_DATE ? data.date < v.data.date
 				: false // shouldn't happen
 				;
 		}
 		value(value&& v)
 		{
-			element.type = v.element.type;
-			element.data = v.element.data;
+			type = v.type;
+			data = v.data;
 
-			v.element.type = BSON_NULL;
+			v.type = BSON_NULL;
 		}
 		value& operator=(value&& v)
 		{
 			if (this != &v) {
-				element.type = v.element.type;
-				element.data = v.element.data;
+				type = v.type;
+				data = v.data;
 
-				v.element.type = BSON_NULL;
+				v.type = BSON_NULL;
 			}
 
 			return *this;
 		}
 		value(const char* s)
 		{
-			element.type = BSON_STRING;
+			type = BSON_STRING;
 			construct_string(s);
 		}
 		value(const string& s)
 		{
-			element.type = BSON_STRING;
+			type = BSON_STRING;
 			construct_string(s.data);
 		}
 		value& operator=(const char* s)
 		{
 			delete_value();
-			element.type = BSON_STRING;
+			type = BSON_STRING;
 			construct_string(s);
 
 			return *this;
@@ -206,122 +200,122 @@ namespace bson {
 		value& operator=(const string& s)
 		{
 			delete_value();
-			element.type = BSON_STRING;
+			type = BSON_STRING;
 			construct_string(s.data);
 
 			return *this;
 		}
 		bool operator==(const char* s) const
 		{
-			return element.type == BSON_STRING && strcmp(element.data.string.data, s) == 0;
+			return type == BSON_STRING && strcmp(data.string.data, s) == 0;
 		}
 		bool operator<(const char* s) const
 		{
-			return element.type == BSON_STRING && strcmp(element.data.string.data, s) < 0;
+			return type == BSON_STRING && strcmp(data.string.data, s) < 0;
 		}
 
 		explicit value(double number)
 		{
-			element.type = BSON_NUMBER;
-			element.data.number = number;
+			type = BSON_NUMBER;
+			data.number = number;
 		}
 		value& operator=(double number)
 		{
 			delete_value();
-			element.type = BSON_NUMBER;
-			element.data.number = number;
+			type = BSON_NUMBER;
+			data.number = number;
 
 			return *this;
 		}
 		bool operator==(double number) const
 		{
-			return element.type == BSON_NUMBER && element.data.number == number;
+			return type == BSON_NUMBER && data.number == number;
 		}
 		bool operator<(double number) const
 		{
-			return element.type == BSON_NUMBER && element.data.number < number;
+			return type == BSON_NUMBER && data.number < number;
 		}
 
 		// array
 		value(size_t n, const bson::element* elements)
 		{
-			element.type = BSON_ARRAY;
+			type = BSON_ARRAY;
 			construct_array(n, elements);
 		}
 /*		value(size_t n, const value* value)
 		{
-			element.type = BSON_ARRAY;
+			type = BSON_ARRAY;
 			construct_array(n, value);
 		}
 */		value& operator=(const array& a)
 		{
 			delete_value();
-			element.type = BSON_ARRAY;
+			type = BSON_ARRAY;
 			construct_array(a.size, a.element);
 
 			return *this;
 		}
 		bool operator==(const array& array) const
 		{
-			return element.type == BSON_ARRAY && element.data.array.size == array.size
-				&& std::equal(element.data.array.element, element.data.array.element + element.data.array.size, array.element);
+			return type == BSON_ARRAY && data.array.size == array.size
+				&& std::equal(data.array.element, data.array.element + data.array.size, array.element);
 		}
 		bool operator<(const array& array) const
 		{
-			return element.type == BSON_ARRAY && std::lexicographical_compare(element.data.array.element, element.data.array.element + element.data.array.size, array.element, array.element + array.size);
+			return type == BSON_ARRAY && std::lexicographical_compare(data.array.element, data.array.element + data.array.size, array.element, array.element + array.size);
 		}
 		bson::element& operator[](size_t i)
 		{
 			// ensure type == BSON_ARRAY;
-			return element.data.array.element[i];
+			return data.array.element[i];
 		}
 		const bson::element& operator[](size_t i) const
 		{
 			// ensure type == BSON_ARRAY;
-			return element.data.array.element[i];
+			return data.array.element[i];
 		}
 
 		// byte
 		value(size_t size, uint8_t* data)
 		{
-			element.type = BSON_BYTE;
+			type = BSON_BYTE;
 			construct_byte(size, data);
 		}
 		value& operator=(const byte& b)
 		{
 			delete_value();
-			element.type = BSON_BYTE;
+			type = BSON_BYTE;
 			construct_byte(b.size, b.data);
 
 			return *this;
 		}
 		bool operator==(const byte& byte) const
 		{
-			return element.type == BSON_BYTE && element.data.byte.size == byte.size
-				&& std::equal(element.data.byte.data, element.data.byte.data + element.data.byte.size, byte.data);
+			return type == BSON_BYTE && data.byte.size == byte.size
+				&& std::equal(data.byte.data, data.byte.data + data.byte.size, byte.data);
 		}
 		bool operator<(const byte& byte) const
 		{
-			return element.type == BSON_BYTE
-				&& std::lexicographical_compare(element.data.byte.data, element.data.byte.data + element.data.byte.size, byte.data, byte.data + byte.size);
+			return type == BSON_BYTE
+				&& std::lexicographical_compare(data.byte.data, data.byte.data + data.byte.size, byte.data, byte.data + byte.size);
 		}
 
 		explicit value(bool b)
 		{
-			element.type = b ? BSON_TRUE : BSON_FALSE;
+			type = b ? BSON_TRUE : BSON_FALSE;
 		}
 		value& operator=(bool b)
 		{
 			delete_value();
-			element.type = b ? BSON_TRUE : BSON_FALSE;
+			type = b ? BSON_TRUE : BSON_FALSE;
 		}
 		bool operator==(bool b) const
 		{
-			return element.type == (b ? BSON_TRUE : BSON_FALSE);
+			return type == (b ? BSON_TRUE : BSON_FALSE);
 		}
 		bool operator<(bool b) const
 		{
-			return element.type == BSON_FALSE ? b : false;
+			return type == BSON_FALSE ? b : false;
 		}
 
 		// int32
@@ -330,68 +324,68 @@ namespace bson {
 		// time_t
 		value(time_t t)
 		{
-			element.type = BSON_DATE;
-			element.data.date = t;
+			type = BSON_DATE;
+			data.date = t;
 		}
 		value& operator=(time_t t)
 		{
 			delete_value();
-			element.type = BSON_DATE;
-			element.data.date = t;
+			type = BSON_DATE;
+			data.date = t;
 
 			return *this;
 		}
 		bool operator==(time_t date) const
 		{
-			return element.type == BSON_DATE && element.data.date == date;
+			return type == BSON_DATE && data.date == date;
 		}
 		bool operator<(time_t date) const
 		{
-			return element.type == BSON_DATE && element.data.date < date;
+			return type == BSON_DATE && data.date < date;
 		}
 	protected:
 		void construct_string(const char* s)
 		{
-			element.data.string.size = strlen(s) + 1;
-			element.data.string.data = new char[element.data.string.size + 1];
-			strcpy(element.data.string.data, s);
+			data.string.size = strlen(s) + 1;
+			data.string.data = new char[data.string.size + 1];
+			strcpy(data.string.data, s);
 		}
 		void delete_string(void)
 		{
-			delete [] element.data.string.data;
+			delete [] data.string.data;
 		}
 
 		void construct_array(size_t n, const bson::element* v)
 		{
-			element.data.array.size = n;
-			element.data.array.element = new bson::element[n];
-			std::copy(v, v + n, element.data.array.element);
+			data.array.size = n;
+			data.array.element = new bson::element[n];
+			std::copy(v, v + n, data.array.element);
 		}
 /*		void construct_array(size_t n, const value* v)
 		{
-			element.data.array.size = n;
-			element.data.array.element = new bson::element[n];
-			std::copy(v, v + n, element.data.array.element);
+			data.array.size = n;
+			data.array.element = new bson::element[n];
+			std::copy(v, v + n, data.array.element);
 		}
 */		void delete_array(void)
 		{
-			delete [] element.data.array.element;
+			delete [] data.array.element;
 		}
 
 		void construct_byte(size_t n, const uint8_t* b)
 		{
-			element.data.byte.size = n;
-			element.data.byte.data = new uint8_t[n];
-			memcpy(element.data.byte.data, b, n);
+			data.byte.size = n;
+			data.byte.data = new uint8_t[n];
+			memcpy(data.byte.data, b, n);
 		}
 		void delete_byte(void)
 		{
-			delete [] element.data.byte.data;
+			delete [] data.byte.data;
 		}
 
 		void delete_value()
 		{
-			switch (element.type) {
+			switch (type) {
 			case BSON_STRING:
 				delete_string();
 				break;
