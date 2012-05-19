@@ -5,6 +5,7 @@
 
 //using namespace std;
 using namespace bson;
+using bson::read;
 using json::string;
 using json::string_;
 
@@ -16,7 +17,6 @@ void test_read(void)
 	const char* t = hw + 4;
 	bson_type bt = type(t);
 	assert (bt == BSON_STRING);
-	t++;
 	string k = key(t);
 	assert (k == "hello");
 }
@@ -38,12 +38,19 @@ void test_write(void)
 	n += write("boolean", false, s);
 
 	const char* t = buf;
-	assert (key(t) == "hello");
-	assert (value<string>(t) == "world");
-	assert (key(t) == "number");
-	assert (value<double>(t) == 1.23);
-	assert (key(t) == "boolean");
-	assert (value<bool>(t) == false);
+	pair kv;
+	
+	kv = read(t);
+	assert (kv.key == "hello");
+	assert (kv.value == "world");
+	
+	kv = read(t);
+	assert (kv.key == "number");
+	assert (kv.value == 1.23);
+	
+	kv = read(t);
+	assert (kv.key == "boolean");
+	assert (kv.value == false);
 }
 
 int main()

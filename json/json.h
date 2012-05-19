@@ -79,7 +79,7 @@ namespace json {
 			int64_t int64;
 			time_t date;
 		} data;
-		int type; // so we can also use BSON types
+		json_element_type type;
 	};
 
 	inline bool operator==(const string& s, const string& t)
