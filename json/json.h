@@ -498,36 +498,6 @@ namespace json {
 		}
 	};
 
-
-	// read object from string
-	inline object recv(const char* s)
-	{
-		object o;
-
-		// skip length
-		s += 4;
-
-		do {
-			char type = *s++; 
-			const char* key = s;
-
-			size_t n = strlen(s);
-			s += n;
-		
-			switch (type) {
-			case 0x01:
-				o[key] = value(*(double*)s); 
-				s += sizeof(double);
-				break;
-			case 0x02:
-				o[key] = value(s);
-				s += o[key].data.string.size + 1;
-			}
-		} while (*s);
-
-		return o;
-	}
-
 } // namespace bson
 
 std::ostream& operator<<(std::ostream& os, const json::value& v)
