@@ -36,6 +36,12 @@ void test_write(void)
 	n = write("hello", "world", s);
 	n += write("number", 1.23, s);
 	n += write("boolean", false, s);
+	json::value a(3);
+	a[0] = json::value("string");
+	a[1] = json::value(1.23);
+	a[2] = json::value(true);
+	n += write("array", a, s);
+	
 
 	const char* t = buf;
 	pair kv;

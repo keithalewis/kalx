@@ -1,8 +1,10 @@
 // decode.h - BSON parser
 #pragma once
 #include <cstdint>
-#include <cstring>
+#include <cstdlib>
+#include <string>
 #include <io.h>
+#include <string>
 #include "json.h"
 
 typedef enum {
@@ -102,6 +104,10 @@ namespace bson {
 			: 0 // no write
 			;
 	}
+	inline size_t write(const char* key, const json::value& val, char*& buf)
+	{
+		return write(key, static_cast<const json::element&>(val), buf);
+	}
 	// none template functions resolved first
 	inline size_t write(const char* key, const json::string& val, char*&  buf)
 	{
@@ -142,9 +148,8 @@ namespace bson {
 		*buf++ = *key++; // null terminate key
 		++bytes;
 
-		char i_[1024];
-		for (size_t i = 0; i < val.size; ++i) {
-			bytes += write(itoa(i, i_, 10), val.element[i], buf);
+		for (long long i = 0; i < val.size; ++i) {
+			bytes += write(std::to_string(i).c_str(), val.element[i], buf);
 		}
 		
 		return bytes;

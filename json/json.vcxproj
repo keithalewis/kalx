@@ -74,6 +74,7 @@
     </Link>
   </ItemDefinitionGroup>
   <ItemGroup>
+    <ClCompile Include="..\utility\debug.cpp" />
     <ClCompile Include="tjson.cpp" />
   </ItemGroup>
   <ItemGroup>

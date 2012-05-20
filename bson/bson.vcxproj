@@ -79,6 +79,7 @@
     <ClInclude Include="bson.h" />
   </ItemGroup>
   <ItemGroup>
+    <ClCompile Include="..\utility\debug.cpp" />
     <ClCompile Include="tbson.cpp" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />

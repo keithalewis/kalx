@@ -1,10 +1,13 @@
 // json.h - Lightweight C++ wrappers for mongo C library.
+#include <cstring>
 #include <cstdint>
+#include <algorithm>
+#include <functional>
 #include <iostream>
 #include <map>
 #include <string>
 #include <vector>
-#include <xutility>
+#include <utility>
 
 using namespace std::rel_ops;
 
@@ -16,6 +19,7 @@ typedef enum {
 	JSON_TRUE,
 	JSON_FALSE,
 	JSON_NULL,
+	// extensions for BSON
 	JSON_BYTE,
 	JSON_INT32,
 	JSON_INT64,
@@ -28,6 +32,7 @@ namespace json {
 	struct element;
 	typedef std::map<std::string, value> object;
 
+	// POD types for holding the bits
 	struct string {
 		size_t size;
 		const char* data;
@@ -44,14 +49,16 @@ namespace json {
 
 	struct array {
 		size_t size;
-		const element* element;
+		json::element* element;
 	};
-	inline array array_(size_t size, const element* element)
+	inline array array_(size_t size, json::element* element)
 	{
-		array e;
+		array a;
 
-		e.size = size;
-		e.element = element;
+		a.size = size;
+		a.element = element;
+
+		return a;
 	}
 
 	struct byte {
@@ -70,11 +77,11 @@ namespace json {
 
 	struct element {
 		union {
-			string string;
+			json::string string;
 			double number;
-			object* object;
-			array array;
-			byte byte;
+			json::object* object;
+			json::array array;
+			json::byte byte;
 			int32_t int32;
 			int64_t int64;
 			time_t date;
@@ -163,7 +170,7 @@ namespace json {
 
 	inline bool operator==(const element& e, bool b)
 	{
-		return b && e.type == JSON_TRUE || !b && e.type == JSON_FALSE;
+		return (b && e.type == JSON_TRUE) || (!b && e.type == JSON_FALSE);
 	}
 	inline bool operator<(const element& e, bool b)
 	{
@@ -215,6 +222,7 @@ namespace json {
 			;
 	}
 
+	// real class for managing memory
 	class value : public element {
 	public:
 		operator json::element&()
@@ -224,10 +232,6 @@ namespace json {
 		operator const json::element&() const
 		{
 			return *this;
-		}
-		bool operator!() const
-		{
-			return type == JSON_NULL || type == JSON_FALSE;
 		}
 
 		value()
@@ -282,13 +286,7 @@ namespace json {
 
 			return *this;
 		}
-//		value(const value&& v);
-//		value& operator=(const value&& v);
-		~value()
-		{
-			delete_value();
-		}
-		value(value&& v)
+/*		value(value&& v)
 		{
 			type = v.type;
 			data = v.data;
@@ -306,6 +304,12 @@ namespace json {
 
 			return *this;
 		}
+*/		~value()
+		{
+			delete_value();
+		}
+
+		// string
 		value(const char* s)
 		{
 			type = JSON_STRING;
@@ -342,6 +346,7 @@ namespace json {
 			return operator const json::element&() < s;
 		}
 
+		// number
 		explicit value(double number)
 		{
 			type = JSON_NUMBER;
@@ -374,19 +379,21 @@ namespace json {
 		{
 			delete_value();
 			type = JSON_ARRAY;
-			std::copy(a.element, a.element + a.size, const_cast<json::element*>(data.array.element));
+			construct_array(a.size);
+			for (size_t i = 0; i < a.size; ++i)
+				operator[](i) = a.element[i];
 
 			return *this;
 		}
-		json::element& operator[](size_t i)
+		json::value& operator[](size_t i)
 		{
 			// ensure type == JSON_ARRAY;
-			return const_cast<json::element&>(data.array.element[i]);
+			return static_cast<json::value&>(data.array.element[i]);
 		}
-		const json::element& operator[](size_t i) const
+		const json::value& operator[](size_t i) const
 		{
 			// ensure type == JSON_ARRAY;
-			return data.array.element[i];
+			return static_cast<const json::value&>(data.array.element[i]);
 		}
 
 		// byte
@@ -459,16 +466,24 @@ namespace json {
 		void delete_string(void)
 		{
 			delete [] data.string.data;
+			type = JSON_NULL;
 		}
 
 		void construct_array(size_t n)
 		{
 			data.array.size = n;
-			data.array.element = new json::element[n];
+			data.array.element = static_cast<json::element*>(malloc(n*sizeof(json::element)));
+			for (size_t i = 0; i < n; ++i)
+				data.array.element[i].type = JSON_NULL;
 		}
 		void delete_array(void)
 		{
-			delete [] data.array.element;
+			for (size_t i = 0; i < data.array.size; ++i)
+				operator[](i).delete_value();
+			
+			free(data.array.element);
+
+			type = JSON_NULL;
 		}
 
 		void construct_byte(size_t n, const uint8_t* b)
@@ -480,6 +495,7 @@ namespace json {
 		void delete_byte(void)
 		{
 			delete [] data.byte.data;
+			type = JSON_NULL;
 		}
 
 		void delete_value()
@@ -494,6 +510,8 @@ namespace json {
 			case JSON_BYTE:
 				delete_byte();
 				break;
+			default:
+				type = JSON_NULL;
 			}
 		}
 	};
@@ -518,6 +536,10 @@ std::ostream& operator<<(std::ostream& os, const json::value& v)
 	case JSON_TRUE:  os << "true"; break;
 	case JSON_FALSE: os << "false"; break;
 	case JSON_NULL:  os << "null"; break;
+	case JSON_BYTE: { for (size_t i = 0; i < v.data.byte.size; ++i) os << v.data.byte.data[i]; } break;
+	case JSON_INT32: os << v.data.int32; break;
+	case JSON_INT64: os << v.data.int64; break;
+	case JSON_DATE: os << v.data.date; break; // pretty print???
 
 	default:
 		os << "*undefined*";
