@@ -102,7 +102,7 @@ namespace bson {
 			: 0 // no write
 			;
 	}
-
+	// none template functions resolved first
 	inline size_t write(const char* key, const json::string& val, char*&  buf)
 	{
 		size_t bytes = 1;
@@ -119,15 +119,16 @@ namespace bson {
 		buf += 4;
 		bytes += 4;
 		
-		strcat(buf, val.data);
-		buf += val.size + 1;
+		memcpy(buf, val.data, val.size);
+		buf += val.size;
+		*buf++ = 0;
 		bytes += val.size + 1;
 
 		return bytes;
 	}
 	inline size_t write(const char* key, const char* val, char*&  buf)
 	{
-		return write<json::string>(key, json::string_(strlen(val), val), buf);
+		return write(key, json::string_(strlen(val), val), buf);
 	}
 	inline size_t write(const char* key, const json::array& val, char*& buf)
 	{
@@ -198,12 +199,10 @@ namespace bson {
 
 		return t;
 	}
-
 	template<>
-	inline json::string value<json::string> (const char*& buf)
+	inline json::string value<json::string>(const char*& buf)
 	{
 		json::string val;
-		// ensure (type(s) == BSON_STRING);
 		val.size = *(int32_t*)buf - 1;
 		buf += 4;
 		val.data = buf;
@@ -211,6 +210,7 @@ namespace bson {
 
 		return val;
 	}
+	// overload using type
 	inline json::element value(bson_type type, const char*& buf)
 	{
 		json::element e;
