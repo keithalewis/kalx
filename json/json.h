@@ -8,6 +8,10 @@
 #include <string>
 #include <vector>
 #include <utility>
+#ifndef ensure
+#include <cassert>
+#define ensure assert
+#endif // ensure
 
 using namespace std::rel_ops;
 
@@ -23,7 +27,8 @@ typedef enum {
 	JSON_BYTE,
 	JSON_INT32,
 	JSON_INT64,
-	JSON_DATE
+	JSON_DATE,
+	JSON_UNDEFINED
 } json_element_type;
 
 namespace json {
@@ -233,10 +238,14 @@ namespace json {
 		{
 			return *this;
 		}
+		operator bool() const
+		{
+			return type != JSON_UNDEFINED;
+		}
 
 		value()
 		{
-			type = JSON_NULL;
+			type = JSON_UNDEFINED;
 		}
 		value(const value& v)
 		{
@@ -291,7 +300,7 @@ namespace json {
 			type = v.type;
 			data = v.data;
 
-			v.type = JSON_NULL;
+			v.type = JSON_UNDEFINED;
 		}
 		value& operator=(value&& v)
 		{
@@ -299,7 +308,7 @@ namespace json {
 				type = v.type;
 				data = v.data;
 
-				v.type = JSON_NULL;
+				v.type = JSON_UNDEFINED;
 			}
 
 			return *this;
@@ -466,7 +475,7 @@ namespace json {
 		void delete_string(void)
 		{
 			delete [] data.string.data;
-			type = JSON_NULL;
+			type = JSON_UNDEFINED;
 		}
 
 		void construct_array(size_t n)
@@ -474,7 +483,7 @@ namespace json {
 			data.array.size = n;
 			data.array.element = static_cast<json::element*>(malloc(n*sizeof(json::element)));
 			for (size_t i = 0; i < n; ++i)
-				data.array.element[i].type = JSON_NULL;
+				data.array.element[i].type = JSON_UNDEFINED;
 		}
 		void delete_array(void)
 		{
@@ -483,7 +492,7 @@ namespace json {
 			
 			free(data.array.element);
 
-			type = JSON_NULL;
+			type = JSON_UNDEFINED;
 		}
 
 		void construct_byte(size_t n, const uint8_t* b)
@@ -495,7 +504,7 @@ namespace json {
 		void delete_byte(void)
 		{
 			delete [] data.byte.data;
-			type = JSON_NULL;
+			type = JSON_UNDEFINED;
 		}
 
 		void delete_value()
@@ -511,10 +520,126 @@ namespace json {
 				delete_byte();
 				break;
 			default:
-				type = JSON_NULL;
+				type = JSON_UNDEFINED;
 			}
 		}
 	};
+
+	namespace parse {
+		inline bool eat(char c, std::istream& is)
+		{
+			char c_;
+
+			is >> std::skipws >> c_;
+
+			return c == c_;
+		}
+		inline bool eat(const char* s, std::istream& is)
+		{
+			char c_;
+
+			is >> std::skipws >> c_;
+
+			return strchr(s, c_);
+		}
+		inline json::value read_array(std::istream& is)
+		{
+			// ???
+			ensure (eat(']', is));
+		}
+		inline std::string read_string(std::istream& is, bool eat = true)
+		{
+			char c;
+			std::string s;
+
+			if (eat)
+				ensure (parse::eat("\"\'", is));
+			for (is >> c; c != '\"' && c != '\'' && !isspace(c); is >> c)
+				s += c; // does not handle escaped quotes!!!
+			
+			parse::eat(c, is);
+		}
+		inline json::value read_value(std::istream& is)
+		{
+			char c;
+			json::value v;
+
+			is >> std::skipws >> c;
+
+			if (c == '[') {
+				v = read_array(is);
+				ensure (eat(']', is));
+			}
+			else if (c == '\"' || c == '\'')
+				v = read_string(is, false).c_str();
+			else if (c == 'f') {
+				ensure (eat('a', is));
+				ensure (eat('l', is));
+				ensure (eat('s', is));
+				ensure (eat('e', is));
+				v = false;
+			}
+			else if (c == 't') {
+				ensure (eat('r', is));
+				ensure (eat('u', is));
+				ensure (eat('e', is));
+				v = true;
+			}
+			else if (c == 'n') {
+				ensure (eat('u', is));
+				ensure (eat('l', is));
+				ensure (eat('l', is));
+				v.type = JSON_NULL;
+			}
+			else {
+				is.putback(c);
+				is >> v.data.number;
+				ensure (!is.fail());
+				v.type = JSON_NUMBER;
+			}
+
+			return v;
+		}
+		inline std::string read_key(std::istream& is)
+		{
+			std::string key = read_string(is);
+
+			ensure (parse::eat(',', is));
+
+			return key;
+		}
+		inline std::pair<std::string,json::value> read_pair(std::istream& is)
+		{
+			std::string k = read_key(is);
+			json::value v;
+
+			if (k != "")
+				v = read_value(is);
+
+			return std::make_pair(k, v);
+		}
+		inline object read_members(std::istream& is)
+		{
+			object o;
+
+			while (true) {
+				std::pair<std::string,json::value> kv = read_pair(is);
+				if (kv.first == "")
+					break;
+				o.insert(kv);
+			}
+
+			return o;
+		}
+
+	} // namespace parse
+
+	inline object read_object(std::istream& is)
+	{
+		ensure (parse::eat('{', is));
+		object o = parse::read_members(is);
+		ensure (parse::eat('}', is));
+	}
 
 } // namespace bson
 
@@ -560,5 +685,19 @@ std::ostream& operator<<(std::ostream& os, const json::object& o)
 
 	return os;
 }
+
+std::istream& operator>>(std::istream& is, json::value& v)
+{
+	v = json::parse::read_value(is);
+
+	return is;
+}
+std::istream& operator>>(std::istream& is, json::object& o)
+{
+	o = json::read_object(is);
+
+	return is;
+}
+
 
 
