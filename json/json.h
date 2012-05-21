@@ -37,6 +37,7 @@ namespace json {
 
 	class value;
 	struct element;
+	typedef std::pair<std::string,json::value> pair;
 	typedef std::map<std::string, value> object;
 
 	// POD types for holding the bits

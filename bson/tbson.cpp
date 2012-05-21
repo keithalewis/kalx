@@ -17,7 +17,7 @@ void test_read(void)
 	const char* t = hw + 4;
 	bson_type bt = type(t);
 	assert (bt == BSON_STRING);
-	string k = key(t);
+	std::string k = key(t);
 	assert (k == "hello");
 }
 
@@ -44,19 +44,19 @@ void test_write(void)
 	
 
 	const char* t = buf;
-	pair kv;
+	json::pair kv;
 	
 	kv = read(t);
-	assert (kv.key == "hello");
-	assert (kv.value == "world");
+	assert (kv.first == "hello");
+	assert (kv.second == "world");
 	
 	kv = read(t);
-	assert (kv.key == "number");
-	assert (kv.value == 1.23);
+	assert (kv.first == "number");
+	assert (kv.second == 1.23);
 	
 	kv = read(t);
-	assert (kv.key == "boolean");
-	assert (kv.value == false);
+	assert (kv.first == "boolean");
+	assert (kv.second == false);
 }
 
 int main()
