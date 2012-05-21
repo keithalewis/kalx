@@ -51,11 +51,6 @@ namespace bson {
 //	template<> struct bson_enum<int64_t> { static const bson_type type = BSON_LONG; };
 	template<> struct bson_enum<time_t> { static const bson_type type = BSON_DATE; };
 
-	struct pair {
-		json::string key;
-		json::element value;
-	};
-
 	//
 	// writing objects
 	//
@@ -186,11 +181,11 @@ namespace bson {
 		return (bson_type)(*s++);
 	}
 
-	inline json::string key(const char*& s)
+	inline std::string key(const char*& s)
 	{
-		json::string key = json::string_(strlen(s), s);
+		std::string key(s);
 
-		s += key.size + 1;
+		s += key.length() + 1;
 
 		return key;
 	}
@@ -274,15 +269,14 @@ namespace bson {
 		return e;
 	}
 
-	inline pair read(const char*& buf)
+	inline std::pair<std::string,json::value> read(const char*& buf)
 	{
-		pair kv;
-
 		bson_type t = type(buf);
-		kv.key = key(buf);
-		kv.value = value(t, buf);
 
-		return kv;
+		std::string key = bson::key(buf);
+		json::value value = bson::value(t, buf);
+
+		return std::make_pair(key, value);
 	}
 
 } // namepace bson

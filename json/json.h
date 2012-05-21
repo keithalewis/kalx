@@ -24,11 +24,13 @@ typedef enum {
 	JSON_FALSE,
 	JSON_NULL,
 	// extensions for BSON
+#ifndef JSON_ONLY
 	JSON_BYTE,
 	JSON_INT32,
 	JSON_INT64,
 	JSON_DATE,
-	JSON_UNDEFINED
+#endif
+	JSON_UNDEFINED // "empty" type
 } json_element_type;
 
 namespace json {
@@ -65,7 +67,7 @@ namespace json {
 
 		return a;
 	}
-
+#ifndef JSON_ONLY
 	struct byte {
 		size_t size;
 		const uint8_t* data;
@@ -79,17 +81,19 @@ namespace json {
 
 		return b;
 	}
-
+#endif
 	struct element {
 		union {
 			json::string string;
 			double number;
 			json::object* object;
 			json::array array;
+#ifndef JSON_ONLY
 			json::byte byte;
 			int32_t int32;
 			int64_t int64;
 			time_t date;
+#endif
 		} data;
 		json_element_type type;
 	};
@@ -163,7 +167,7 @@ namespace json {
 	{
 		return e.type == JSON_ARRAY && e.data.array < array;
 	}
-
+#ifndef JSON_ONLY
 	inline bool operator==(const element& e, const byte& byte)
 	{
 		return e.type == JSON_BYTE && e.data.byte == byte;
@@ -172,7 +176,7 @@ namespace json {
 	{
 		return e.type == JSON_BYTE && e.data.byte < byte;
 	}
-
+#endif
 	inline bool operator==(const element& e, bool b)
 	{
 		return (b && e.type == JSON_TRUE) || (!b && e.type == JSON_FALSE);
@@ -181,7 +185,7 @@ namespace json {
 	{
 		return e.type == JSON_FALSE && b;
 	}
-
+#ifndef JSON_ONLY
 	inline bool operator==(const element& e, time_t date)
 	{
 		return e.type == JSON_DATE && e.data.date == date;
@@ -190,7 +194,7 @@ namespace json {
 	{
 		return e.type == JSON_DATE && e.data.date < date;
 	}
-
+#endif
 	inline bool operator==(const element& a, const element& b)
 	{
 		return a.type != b.type ? false
@@ -201,10 +205,12 @@ namespace json {
 			: a.type == JSON_TRUE ? b.type == JSON_TRUE
 			: a.type == JSON_FALSE ? b.type == JSON_FALSE
 			: a.type == JSON_NULL ? false // just like javascript
+#ifndef JSON_ONLY
 			: a.type == JSON_BYTE ? a == b.data.byte
 			: a.type == JSON_INT32 ? a.data.int32 == b.data.int32 
 			: a.type == JSON_INT64 ? a.data.int64 == b.data.int64
 			: a.type == JSON_DATE ? a.data.date == b.data.date
+#endif
 			: false
 			;
 	}
@@ -219,10 +225,12 @@ namespace json {
 			: a.type == JSON_TRUE ? false
 			: a.type == JSON_FALSE ? b.type == JSON_TRUE
 			: a.type == JSON_NULL ? false // just like javascript
+#ifndef JSON_ONLY
 			: a.type == JSON_BYTE ? a < b.data.byte
 			: a.type == JSON_INT32 ? a.data.int32 < b.data.int32 
 			: a.type == JSON_INT64 ? a.data.int64 < b.data.int64
 			: a.type == JSON_DATE ? a.data.date < b.data.date
+#endif
 			: false
 			;
 	}
@@ -261,9 +269,11 @@ namespace json {
 				case JSON_ARRAY:
 					operator=(v.data.array);
 					break;
+#ifndef JSON_ONLY
 				case JSON_BYTE:
 					operator=(v.data.byte);
 					break;
+#endif
 				default: // non pointer types
 					type = v.type;
 					data = v.data;
@@ -285,9 +295,11 @@ namespace json {
 			case JSON_ARRAY:
 				operator=(e.data.array);
 				break;
+#ifndef JSON_ONLY
 			case JSON_BYTE:
 				operator=(e.data.byte);
 				break;
+#endif
 			default: // non pointer types
 				type = e.type;
 				data = e.data;
@@ -295,44 +307,28 @@ namespace json {
 
 			return *this;
 		}
-/*		value(value&& v)
-		{
-			type = v.type;
-			data = v.data;
-
-			v.type = JSON_UNDEFINED;
-		}
-		value& operator=(value&& v)
-		{
-			if (this != &v) {
-				type = v.type;
-				data = v.data;
-
-				v.type = JSON_UNDEFINED;
-			}
-
-			return *this;
-		}
-*/		~value()
+		~value()
 		{
 			delete_value();
+		}
+
+		bool operator==(const value& v) const
+		{
+			return this->operator const json::element &() == v.operator const json::element &();
 		}
 
 		// string
 		value(const char* s)
 		{
-			type = JSON_STRING;
 			construct_string(s);
 		}
 		value(const string& s)
 		{
-			type = JSON_STRING;
 			construct_string(s.data);
 		}
 		value& operator=(const char* s)
 		{
 			delete_value();
-			type = JSON_STRING;
 			construct_string(s);
 
 			return *this;
@@ -340,7 +336,6 @@ namespace json {
 		value& operator=(const string& s)
 		{
 			delete_value();
-			type = JSON_STRING;
 			construct_string(s.data);
 
 			return *this;
@@ -381,13 +376,11 @@ namespace json {
 		// array
 		explicit value(int n)
 		{
-			type = JSON_ARRAY;
 			construct_array(n);
 		}
 		value& operator=(const array& a)
 		{
 			delete_value();
-			type = JSON_ARRAY;
 			construct_array(a.size);
 			for (size_t i = 0; i < a.size; ++i)
 				operator[](i) = a.element[i];
@@ -404,22 +397,26 @@ namespace json {
 			// ensure type == JSON_ARRAY;
 			return static_cast<const json::value&>(data.array.element[i]);
 		}
-
+		json::value& push_back(const json::element& element)
+		{
+			push_back_array(element);
+			
+			return *this;
+		}
+#ifndef JSON_ONLY
 		// byte
 		value(size_t size, uint8_t* data)
 		{
-			type = JSON_BYTE;
 			construct_byte(size, data);
 		}
 		value& operator=(const byte& b)
 		{
 			delete_value();
-			type = JSON_BYTE;
 			construct_byte(b.size, b.data);
 
 			return *this;
 		}
-
+#endif
 		explicit value(bool b)
 		{
 			type = b ? JSON_TRUE : JSON_FALSE;
@@ -439,7 +436,7 @@ namespace json {
 		{
 			return operator const json::element&() < b;
 		}
-
+#ifndef JSON_ONLY
 		// int32
 		// int64
 
@@ -465,9 +462,11 @@ namespace json {
 		{
 			return operator const json::element&() < date;
 		}
+#endif
 	protected:
 		void construct_string(const char* s)
 		{
+			type = JSON_STRING;
 			data.string.size = strlen(s);
 			data.string.data = new char[data.string.size + 1];
 			strcpy(const_cast<char*>(data.string.data), s);
@@ -480,6 +479,7 @@ namespace json {
 
 		void construct_array(size_t n)
 		{
+			type = JSON_ARRAY;
 			data.array.size = n;
 			data.array.element = static_cast<json::element*>(malloc(n*sizeof(json::element)));
 			for (size_t i = 0; i < n; ++i)
@@ -494,9 +494,30 @@ namespace json {
 
 			type = JSON_UNDEFINED;
 		}
-
+		void push_back_array(const json::element& element)
+		{
+			if (type == JSON_UNDEFINED) {
+				construct_array(1);
+				operator[](0) = element;
+			}
+			else {
+				if (type != JSON_ARRAY) {
+					value this_(*this);
+					construct_array(2);
+					operator[](0) = this_;
+					operator[](1) = element;
+				}
+				else {
+					data.array.element = static_cast<json::element*>(realloc(data.array.element, (data.array.size + 1)*sizeof(json::element)));
+					operator[](data.array.size) = element;
+					++data.array.size;
+				}
+			}
+		}
+#ifndef JSON_ONLY
 		void construct_byte(size_t n, const uint8_t* b)
 		{
+			type = JSON_BYTE;
 			data.byte.size = n;
 			data.byte.data = new uint8_t[n];
 			memcpy(const_cast<uint8_t*>(data.byte.data), b, n);
@@ -506,7 +527,7 @@ namespace json {
 			delete [] data.byte.data;
 			type = JSON_UNDEFINED;
 		}
-
+#endif
 		void delete_value()
 		{
 			switch (type) {
@@ -516,9 +537,11 @@ namespace json {
 			case JSON_ARRAY:
 				delete_array();
 				break;
+#ifndef JSON_ONLY
 			case JSON_BYTE:
 				delete_byte();
 				break;
+#endif
 			default:
 				type = JSON_UNDEFINED;
 			}
@@ -534,30 +557,36 @@ namespace json {
 
 			return c == c_;
 		}
-		inline bool eat(const char* s, std::istream& is)
+		inline char eat(const char* s, std::istream& is)
 		{
 			char c_;
 
 			is >> std::skipws >> c_;
 
-			return strchr(s, c_);
+			return *strchr(s, c_);
 		}
+
+		inline json::value read_value(std::istream& is);
+
 		inline json::value read_array(std::istream& is)
 		{
-			// ???
-			ensure (eat(']', is));
+			json::value v;
+
+			while (json::value a = read_value(is)) {
+				v.push_back(a);
+			}
+
+			return v;
 		}
-		inline std::string read_string(std::istream& is, bool eat = true)
+		inline std::string read_string(std::istream& is)
 		{
 			char c;
 			std::string s;
 
-			if (eat)
-				ensure (parse::eat("\"\'", is));
-			for (is >> c; c != '\"' && c != '\'' && !isspace(c); is >> c)
+			for (is >> c; c != '\"' && c != '\''; is >> c)
 				s += c; // does not handle escaped quotes!!!
 			
-			parse::eat(c, is);
+			return s;
 		}
 		inline json::value read_value(std::istream& is)
 		{
@@ -566,12 +595,19 @@ namespace json {
 
 			is >> std::skipws >> c;
 
+			if (c == ']' || c == '}') {
+				return v;
+			}
+
+			if (c == ',') {
+				is >> std::skipws >> c;
+			}
+
 			if (c == '[') {
 				v = read_array(is);
-				ensure (eat(']', is));
 			}
 			else if (c == '\"' || c == '\'')
-				v = read_string(is, false).c_str();
+				v = read_string(is).c_str();
 			else if (c == 'f') {
 				ensure (eat('a', is));
 				ensure (eat('l', is));
@@ -604,42 +640,46 @@ namespace json {
 		{
 			std::string key = read_string(is);
 
-			ensure (parse::eat(',', is));
+			ensure (parse::eat(':', is));
 
 			return key;
 		}
-		inline std::pair<std::string,json::value> read_pair(std::istream& is)
+		inline bool read_pair(std::istream& is, std::pair<std::string,json::value>& kv)
 		{
-			std::string k = read_key(is);
-			json::value v;
+			char c;
+			is >> std::skipws >> c;
 
-			if (k != "")
-				v = read_value(is);
+			if (c == '}') {
+				return false;
+			}
 
-			return std::make_pair(k, v);
+			ensure (c == '\"' || c == '\'');
+			kv.first = read_key(is);
+			kv.second = read_value(is);
+
+			return true;
 		}
 		inline object read_members(std::istream& is)
 		{
 			object o;
+			std::pair<std::string,json::value> kv;
 
-			while (true) {
-				std::pair<std::string,json::value> kv = read_pair(is);
-				if (kv.first == "")
-					break;
+			while (read_pair(is, kv)) {
 				o.insert(kv);
 			}
 
 			return o;
 		}
 
-	} // namespace parse
+		inline object read_object(std::istream& is)
+		{
+			ensure (parse::eat('{', is));
+			object o = parse::read_members(is);
 
-	inline object read_object(std::istream& is)
-	{
-		ensure (parse::eat('{', is));
-		object o = parse::read_members(is);
-		ensure (parse::eat('}', is));
-	}
+			return o;
+		}
+
+	} // namespace parse
 
 } // namespace bson
 
@@ -694,7 +734,7 @@ std::istream& operator>>(std::istream& is, json::value& v)
 }
 std::istream& operator>>(std::istream& is, json::object& o)
 {
-	o = json::read_object(is);
+	o = json::parse::read_object(is);
 
 	return is;
 }
