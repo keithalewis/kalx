@@ -210,7 +210,7 @@ namespace bson {
 
 		return val;
 	}
-	// overload using type
+	// overload template function with same name
 	inline json::element value(bson_type type, const char*& buf)
 	{
 		json::element e;
@@ -228,6 +228,7 @@ namespace bson {
 			e.type = JSON_OBJECT;
 			e.data.object = value<json::object*>(buf);
 			break;
+		// arrays have the form {'0':item0, '1', item1, ...}
 		case BSON_ARRAY:
 			e.type = JSON_ARRAY;
 			e.data.array.size = 0;

@@ -323,9 +323,9 @@ namespace json {
 		{
 			construct_string(s);
 		}
-		value(const string& s)
+		value(const json::string& s)
 		{
-			construct_string(s.data);
+			construct_string(s.data, s.size);
 		}
 		value& operator=(const char* s)
 		{
@@ -334,10 +334,10 @@ namespace json {
 
 			return *this;
 		}
-		value& operator=(const string& s)
+		value& operator=(const json::string& s)
 		{
 			delete_value();
-			construct_string(s.data);
+			construct_string(s.data, s.size);
 
 			return *this;
 		}
@@ -404,6 +404,12 @@ namespace json {
 			
 			return *this;
 		}
+		json::value& push_back(const json::array& array)
+		{
+			push_back_array(array);
+			
+			return *this;
+		}
 #ifndef JSON_ONLY
 		// byte
 		value(size_t size, uint8_t* data)
@@ -465,10 +471,10 @@ namespace json {
 		}
 #endif
 	protected:
-		void construct_string(const char* s)
+		void construct_string(const char* s, size_t size = 0)
 		{
 			type = JSON_STRING;
-			data.string.size = strlen(s);
+			data.string.size = size ? size : strlen(s);
 			data.string.data = new char[data.string.size + 1];
 			strcpy(const_cast<char*>(data.string.data), s);
 		}
@@ -504,6 +510,7 @@ namespace json {
 			else {
 				if (type != JSON_ARRAY) {
 					value this_(*this);
+					delete_value();
 					construct_array(2);
 					operator[](0) = this_;
 					operator[](1) = element;
@@ -513,6 +520,24 @@ namespace json {
 					operator[](data.array.size) = element;
 					++data.array.size;
 				}
+			}
+		}
+		void push_back_array(const array& array)
+		{
+			if (type == JSON_UNDEFINED) {
+				operator=(array);
+			}
+			else {
+				if (type != JSON_ARRAY) {
+					value this_(*this);
+					delete_value();
+					construct_array(1);
+					operator[](0) = this_;
+				}
+				data.array.element = static_cast<json::element*>(realloc(data.array.element, (data.array.size + array.size)*sizeof(json::element)));
+				for (size_t i = 0; i < array.size; ++i)
+					operator[](data.array.size + i) = array.element[i];
+				data.array.size += array.size;
 			}
 		}
 #ifndef JSON_ONLY
